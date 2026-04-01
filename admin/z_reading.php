@@ -189,10 +189,10 @@ if (isset($_POST['save_z'])) {
         /* ======================
          SUCCESS + REDIRECT
         ====================== */
-
+//  window.location.href = '../shift_start.php' after alert;
         echo "<script>
         alert('Z Reading Saved. Shift Closed.');
-        window.location.href = '../shift_start.php';
+        window.location.href = 'z_history.php';
         </script>";
         exit;
     }

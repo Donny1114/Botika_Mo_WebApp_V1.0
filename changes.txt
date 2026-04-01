@@ -1,0 +1,8 @@
+march 31,2026 changes for Botika Mo V1.0
+1. Updated z_reading.php, x_reading.php (added auto close shift and cashier breakdown),z_view.php,z_print.php
+2. Updated login.php in (root folder not admin) for hash suppport
+3. Updated admin login.php (for admin access only)
+
+Aprl 1 2026
+1. Header.php (root)- change the color to blue.
+2. footer.php (root) - change version to 1.0.1

@@ -23,9 +23,9 @@
     }
 
     :root {
-      --primary-blue: #ac1212;
+      --primary-blue: #0d6efd;
       /* Bootstrap primary */
-      --accent-pink: #1f099d;
+      --accent-pink: #e83e8c;
       /* Pink accent */
     }
 
@@ -45,8 +45,8 @@
     }
 
     .btn-pink:hover {
-      background-color: #b3245a;
-      border-color: #b3245a;
+      background-color: #7f0a0a;
+      border-color: #800606;
     }
   </style>
 </head>

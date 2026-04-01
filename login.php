@@ -7,12 +7,9 @@ if(isset($_POST['login']))
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    $stmt = $conn->prepare("
-    SELECT * FROM users
-    WHERE username=? AND password=?
-    ");
-
-    $stmt->bind_param("ss",$username,$password);
+    // STEP 1: Get user by username only
+    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ?");
+    $stmt->bind_param("s", $username);
     $stmt->execute();
 
     $result = $stmt->get_result();
@@ -21,16 +18,24 @@ if(isset($_POST['login']))
     {
         $user = $result->fetch_assoc();
 
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['name'] = $user['name'];
-        $_SESSION['role'] = $user['role'];
+        // STEP 2: Verify hashed password
+        if(password_verify($password, $user['password']))
+        {
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['name'] = $user['name'];
+            $_SESSION['role'] = $user['role'];
 
-        header("Location: shift_start.php");
-        exit;
+            header("Location: shift_start.php");
+            exit;
+        }
+        else
+        {
+            $error = "Invalid username or password";
+        }
     }
     else
     {
-        $error = "Invalid login";
+        $error = "Invalid username or password";
     }
 }
 ?>
