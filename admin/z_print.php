@@ -55,6 +55,8 @@ AND o.status != 'Voided'
 LEFT JOIN order_items oi 
 ON oi.order_id = o.id
 
+WHERE DATE(cs.open_time) = '$z_date'  -- only include shifts opened on the Z reading date
+
 GROUP BY cs.id
 ");
 

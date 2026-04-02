@@ -1,7 +1,7 @@
 </div>
 
 <footer class="bg-dark text-white text-center py-3 mt-5">
-    &copy; <?= date("Y") ?> Botika Mo. All rights reserved v1.0.1 Developed by Donny.
+    &copy; <?= date("Y") ?> Botika Mo. All rights reserved v1.0.1.
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

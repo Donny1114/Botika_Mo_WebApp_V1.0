@@ -113,7 +113,7 @@ $opening = $rowOpening['total_opening'] ?? 0;
 $expected_cash = $opening + $cash;
 
 /* ======================
-CASHIER BREAKDOWN (NEW)
+CASHIER BREAKDOWN (FIXED)
 ====================== */
 
 $cashier_query = $conn->query("
@@ -153,6 +153,8 @@ AND o.status != 'Voided'
 
 LEFT JOIN order_items oi 
 ON oi.order_id = o.id
+
+WHERE DATE(cs.open_time) = CURDATE()  -- only include shifts that started today
 
 GROUP BY cs.id
 ");

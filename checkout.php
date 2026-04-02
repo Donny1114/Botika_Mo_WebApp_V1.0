@@ -89,7 +89,7 @@ if (isset($_POST['checkout'])) {
         } else {
 
             echo "<div class='alert alert-success'>Order checked out successfully!</div>";
-            echo "<a href='order.php' class='btn btn-primary'>New Order</a>";
+            echo "<a href='order.php' id='newOrderBtn' class='btn btn-primary'>New Order</a>";
             exit;
         }
     }
@@ -188,8 +188,8 @@ if (isset($_POST['checkout'])) {
     </div>
 
 
-    <button type="submit" name="checkout" class="btn btn-success w-100">
-        Pay & Checkout
+    <button type="submit" name="checkout" id="checkoutBtn" class="btn btn-success w-100">
+        Pay & Checkout (Enter)
     </button>
 
 </form>
@@ -230,4 +230,29 @@ if (isset($_POST['checkout'])) {
         changeInput.value = "₱" + change.toFixed(2);
 
     }
+    // =============================
+    // ENTER KEY SMART ACTION
+    // =============================
+    document.addEventListener('keydown', function(e) {
+
+        if (e.key === 'Enter') {
+
+            e.preventDefault();
+
+            // If checkout button exists → do checkout
+            let checkoutBtn = document.getElementById('checkoutBtn');
+            if (checkoutBtn) {
+                checkoutBtn.click();
+                return;
+            }
+
+            // If new order button exists → go to new order
+            let newOrderBtn = document.getElementById('newOrderBtn');
+            if (newOrderBtn) {
+                window.location.href = newOrderBtn.href;
+                return;
+            }
+        }
+
+    });
 </script>

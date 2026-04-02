@@ -70,7 +70,7 @@ $cashier_query = $conn->query("
 SELECT 
 cs.id,
 cs.cashier_id,
-u.name AS cashier_name,
+COALESCE(u.name, CONCAT('Cashier #', cs.cashier_id)) AS cashier_name,
 cs.opening_cash,
 
 SUM(CASE 
@@ -103,6 +103,8 @@ AND o.status != 'Voided'
 
 LEFT JOIN order_items oi 
 ON oi.order_id = o.id
+
+WHERE DATE(cs.open_time) = CURDATE()  -- only include shifts opened today
 
 GROUP BY cs.id
 ");
@@ -189,7 +191,7 @@ if (isset($_POST['save_z'])) {
         /* ======================
          SUCCESS + REDIRECT
         ====================== */
-//  window.location.href = '../shift_start.php' after alert;
+        //  window.location.href = '../shift_start.php' after alert;
         echo "<script>
         alert('Z Reading Saved. Shift Closed.');
         window.location.href = 'z_history.php';
@@ -244,7 +246,7 @@ if (isset($_POST['save_z'])) {
 
         <div class="border p-2 mb-2">
 
-            <strong><?= $c['cashier_name'] ?? 'Cashier' ?></strong><br>
+            <strong><?= htmlspecialchars($c['cashier_name']) ?></strong><br>
 
             Opening: ₱<?= number_format($c['opening_cash'], 2) ?><br>
 
