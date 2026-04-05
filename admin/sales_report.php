@@ -31,46 +31,36 @@ switch ($filter) {
    MAIN REPORT QUERY
 ========================= */
 $query = "
-    SELECT
-        $periodExpr AS period,
+SELECT
+    $periodExpr AS period,
 
-        SUM(oi.quantity * oi.sell_price) AS gross_sales,
+    -- ✅ correct (no duplication)
+    SUM(o.total) AS gross_sales,
+    SUM(o.discount_amount) AS discount_total,
+    SUM(o.grand_total) AS net_sales,
 
-        SUM(
-        (oi.quantity * oi.sell_price)
-        * (o.discount_percent / 100)
-        ) AS discount_total,
+    -- ✅ calculate COGS safely using subquery
+    SUM((
+        SELECT SUM(oi2.quantity * oi2.cost_price)
+        FROM order_items oi2
+        WHERE oi2.order_id = o.id
+    )) AS cogs,
 
-        SUM(
-        (oi.quantity * oi.sell_price)
-        -
-        ((oi.quantity * oi.sell_price) * (o.discount_percent / 100))
-        ) AS net_sales,
+    -- ✅ correct profit
+    SUM(o.grand_total) - 
+    SUM((
+        SELECT SUM(oi2.quantity * oi2.cost_price)
+        FROM order_items oi2
+        WHERE oi2.order_id = o.id
+    )) AS net_profit
 
-        SUM(
-            (oi.quantity * oi.sell_price)
-            -
-            ((oi.quantity * oi.sell_price) * (o.discount_percent / 100))
-        ) AS net_sales,
+FROM orders o
 
-        SUM(oi.quantity * oi.cost_price) AS cogs,
+WHERE DATE(o.created_at) BETWEEN ? AND ?
+AND o.status != 'Voided'
 
-        SUM(
-        (
-        (oi.quantity * oi.sell_price)
-        -
-        ((oi.quantity * oi.sell_price) * (o.discount_percent / 100))
-        )
-        -
-        (oi.quantity * oi.cost_price)
-        ) AS net_profit
-
-    FROM orders o
-    JOIN order_items oi ON o.id = oi.order_id
-    WHERE DATE(o.created_at) BETWEEN ? AND ?
-    AND o.status != 'Voided'
-    GROUP BY $groupBy
-    ORDER BY MIN(o.created_at) DESC
+GROUP BY $groupBy
+ORDER BY MIN(o.created_at) DESC
 ";
 
 $stmt = mysqli_prepare($conn, $query);
@@ -94,9 +84,7 @@ while ($row = mysqli_fetch_assoc($result)) {
     $totalNet   += $row['net_profit'] ?? 0;
 }
 
-/* =========================
-   EXPORT LOGIC
-========================= */
+
 /* =========================
    EXPORT LOGIC
 ========================= */
@@ -134,21 +122,21 @@ if (isset($_GET['export'])) {
         foreach ($rows as $r) {
             $html .= "<tr>
                         <td>{$r['period']}</td>
-                        <td>PHP" . number_format((float)$r['gross_sales'], 2) . "</td>
-                        <td>PHP" . number_format((float)$r['net_sales'], 2) . "</td>
-                        <td>PHP" . number_format((float)$r['discount_total'], 2) . "</td>
-                        <td>PHP" . number_format((float)$r['cogs'], 2) . "</td>
-                        <td>PHP" . number_format((float)$r['net_profit'], 2) . "</td>
+                        <td>₱" . number_format((float)$r['gross_sales'], 2) . "</td>
+                        <td>₱" . number_format((float)$r['net_sales'], 2) . "</td>
+                        <td>₱" . number_format((float)$r['discount_total'], 2) . "</td>
+                        <td>₱" . number_format((float)$r['cogs'], 2) . "</td>
+                        <td>₱" . number_format((float)$r['net_profit'], 2) . "</td>
                       </tr>";
         }
         // Add total row
         $html .= "<tr style='font-weight:bold; background-color:#f0f0f0;'>
                     <td>TOTAL</td>
-                    <td>PHP" . number_format($totalGrossExport, 2) . "</td>
-                    <td>PHP" . number_format($totalNetSalesExport, 2) . "</td>
-                    <td>PHP" . number_format($totalDiscountExport, 2) . "</td>
-                    <td>PHP" . number_format($totalCogsExport, 2) . "</td>
-                    <td>PHP" . number_format($totalNetExport, 2) . "</td>
+                    <td>₱" . number_format($totalGrossExport, 2) . "</td>
+                    <td>₱" . number_format($totalNetSalesExport, 2) . "</td>
+                    <td>₱" . number_format($totalDiscountExport, 2) . "</td>
+                    <td>₱" . number_format($totalCogsExport, 2) . "</td>
+                    <td>₱" . number_format($totalNetExport, 2) . "</td>
                   </tr>";
 
         $html .= "</tbody></table>";

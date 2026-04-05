@@ -46,13 +46,24 @@ if (isset($_GET['void'])) {
         GROUP BY o.id
     ");
 
+    $totalQ = mysqli_query($conn, "
+    SELECT
+        SUM(oi.quantity * oi.sell_price) AS subtotal,
+
+        SUM(
+            (oi.quantity * oi.sell_price) * (oi.discount_percent / 100)
+        ) AS discount_amount
+
+    FROM order_items oi
+    WHERE oi.order_id=$void_id
+");
+
     $t = mysqli_fetch_assoc($totalQ);
 
     $subtotal = (float)$t['subtotal'];
-    $disc = (float)$t['discount_percent'];
+    $discount = (float)$t['discount_amount'];
 
-    $total_amount = $subtotal - ($subtotal * $disc / 100);
-
+    $total_amount = $subtotal - $discount;
 
     /* =========================
        RESTORE STOCK
@@ -191,15 +202,21 @@ SELECT
     COALESCE(SUM(oi.quantity * oi.sell_price), 0) AS subtotal,
 
     COALESCE(
-        SUM(oi.quantity * oi.sell_price)
-        -
-        (SUM(oi.quantity * oi.sell_price) * o.discount_percent / 100)
-    ,0) AS total_amount
+        SUM(
+            (oi.quantity * oi.sell_price)
+            -
+            ((oi.quantity * oi.sell_price) * (oi.discount_percent / 100))
+        ), 0
+    ) AS total_amount,
+
+    COALESCE(
+        SUM(
+            (oi.quantity * oi.sell_price) * (oi.discount_percent / 100)
+        ), 0
+    ) AS discount_amount
 
 FROM orders o
-
-LEFT JOIN order_items oi
-    ON oi.order_id = o.id
+LEFT JOIN order_items oi ON oi.order_id = o.id
 
 $where
 
@@ -358,7 +375,7 @@ $result = mysqli_query($conn, $sql);
 
                         <td>
 
-                            <?php if ($o['discount_percent'] > 0): ?>
+                            <?php if ($o['discount_amount'] > 0): ?>
 
                                 <small>
                                     Sub:
@@ -369,7 +386,7 @@ $result = mysqli_query($conn, $sql);
                                     <br>
 
                                     Disc:
-                                    <?= $o['discount_percent'] ?>%
+                                    ₱<?= number_format($o['discount_amount'], 2) ?>
                                 </small>
 
                                 <br>
@@ -465,7 +482,8 @@ $result = mysqli_query($conn, $sql);
 SELECT
 p.name,
 oi.quantity,
-oi.sell_price
+oi.sell_price,
+oi.discount_percent
 FROM order_items oi
 JOIN products p
 ON p.id = oi.product_id
@@ -477,24 +495,16 @@ WHERE oi.order_id = {$o['id']}
                                 ?>
 
                                     <li>
-
-                                        <?= htmlspecialchars(
-                                            $item['name']
-                                        ) ?>
-
+                                        <?= htmlspecialchars($item['name']) ?>
                                         —
+                                        <?= $item['quantity'] ?> × ₱<?= number_format($item['sell_price'], 2) ?>
 
-                                        <?= $item['quantity'] ?>
-
-                                        ×
-
-                                        ₱<?= number_format(
-                                                (float)$item['sell_price'],
-                                                2
-                                            ) ?>
-
+                                        <?php if ($item['discount_percent'] > 0): ?>
+                                            <br><small class="text-danger">
+                                                -<?= $item['discount_percent'] ?>%
+                                            </small>
+                                        <?php endif; ?>
                                     </li>
-
                                 <?php endwhile; ?>
 
                             </ul>

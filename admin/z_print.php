@@ -1,15 +1,16 @@
 <?php
 include '../db.php';
 
-$id = $_GET['id'];
+$id = (int)$_GET['id'];
 
-$q = $conn->query("
+$stmt = $conn->prepare("
 SELECT *
 FROM z_reading
-WHERE id = $id
+WHERE id = ?
 ");
-
-$row = $q->fetch_assoc();
+$stmt->bind_param("i", $id);
+$stmt->execute();
+$row = $stmt->get_result()->fetch_assoc();
 
 /* ======================
 CASHIER BREAKDOWN (PRINT)
@@ -24,23 +25,23 @@ cs.cashier_id,
 u.name AS cashier_name,
 cs.opening_cash,
 
-SUM(CASE 
+COALESCE(SUM(CASE 
     WHEN o.payment_method = 'Cash' 
-    THEN (oi.sell_price * oi.quantity) - ((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
+    THEN (oi.sell_price * oi.quantity) - ((oi.sell_price * oi.quantity) * (oi.discount_percent / 100))
     ELSE 0 END
-) as cash_sales,
+),0) as cash_sales,
 
-SUM(CASE 
+COALESCE(SUM(CASE 
     WHEN o.payment_method = 'GCash' 
-    THEN (oi.sell_price * oi.quantity) - ((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
+    THEN (oi.sell_price * oi.quantity) - ((oi.sell_price * oi.quantity) * (oi.discount_percent / 100))
     ELSE 0 END
-) as gcash_sales,
+),0) as gcash_sales,
 
-SUM(CASE 
+COALESCE(SUM(CASE 
     WHEN o.payment_method = 'Card' 
-    THEN (oi.sell_price * oi.quantity) - ((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
+    THEN (oi.sell_price * oi.quantity) - ((oi.sell_price * oi.quantity) * (oi.discount_percent / 100))
     ELSE 0 END
-) as card_sales
+),0) as card_sales
 
 FROM cashier_shift cs
 
@@ -109,12 +110,11 @@ GROUP BY cs.id
 
     <br>
 
-    Sales: <?= number_format($row['total_sales'], 2) ?>
+    Gross: <?= number_format($row['total_sales'] + $row['total_discount'], 2) ?><br>
 
-    <hr>
+    Discount: <?= number_format($row['total_discount'], 2) ?><br>
 
-    Discount: <?= number_format($row['total_discount'], 2) ?>
-
+    <strong>Net: <?= number_format($row['total_sales'], 2) ?></strong>
     Expected: <?= number_format($row['expected_cash'], 2) ?>
 
     <br>

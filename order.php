@@ -48,6 +48,7 @@ if (isset($_POST['clear_discount'])) {
 }
 
 $discountPercent = $_SESSION['discount_percent'];
+// $discountPercent = (float)($_POST['discount_percent'] ?? 0);
 
 // =========================
 // FUNCTION: restore stock
@@ -82,19 +83,45 @@ function restoreStock($conn, $order_id)
 // Fetch current cart items
 // =========================
 $cartItems = $conn->query("
-    SELECT oi.product_id, p.name, oi.quantity, oi.sell_price, oi.cost_price
+    SELECT oi.product_id, p.name, oi.quantity, oi.sell_price, oi.cost_price,oi.discount_percent
     FROM order_items oi
     JOIN products p ON p.id = oi.product_id
     WHERE oi.order_id = $order_id
 ");
 
 $total = 0;
-while ($item = $cartItems->fetch_assoc()) {
-    $total += $item['sell_price'] * $item['quantity'];
-}
+$totalDiscountFromItems = 0;
 
-$discountAmount = $total * ($discountPercent / 100);
-$grandTotal = $total - $discountAmount;
+$cartItems = $conn->query("
+    SELECT oi.product_id, p.name, oi.quantity, oi.sell_price, oi.cost_price, oi.discount_percent
+    FROM order_items oi
+    JOIN products p ON p.id = oi.product_id
+    WHERE oi.order_id = $order_id
+");
+
+while ($item = $cartItems->fetch_assoc()) {
+
+    $itemSubtotal = $item['sell_price'] * $item['quantity'];
+
+    $itemDiscountPercent = $item['discount_percent'] ?? 0;
+
+    $itemDiscount = $itemSubtotal * ($itemDiscountPercent / 100);
+
+    $totalDiscountFromItems += $itemDiscount;
+    $total += ($itemSubtotal - $itemDiscount);
+    // $discountAmount = $total * ($discountPercent / 100);
+    // $grandTotal = $total - $discountAmount;
+}
+// SAFE DEFAULTS (IMPORTANT)
+$discountPercent = $_SESSION['discount_percent'] ?? 0;
+
+// ensure numeric safety
+// $total = $total ?? 0;
+
+// calculate discount + total
+$discountAmount = 0;
+$grandTotal = $total;
+$discountPercent = 0;
 
 // =========================
 // Handle Suspend Order
@@ -157,6 +184,10 @@ $products = $stmt->get_result();
         display: grid;
         grid-template-columns: 65% 35%;
         gap: 10px;
+    }
+
+    .table-primary {
+        background-color: #cfe2ff !important;
     }
 
     .product-list {
@@ -262,7 +293,7 @@ $products = $stmt->get_result();
             </thead>
             <tbody>
                 <?php while ($p = $products->fetch_assoc()): ?>
-                    <tr>
+                    <tr class="product-item">
                         <td><?= htmlspecialchars($p['sku']) ?></td>
                         <td><?= htmlspecialchars($p['name']) ?></td>
                         <td>₱<?= number_format($p['price'], 2) ?></td>
@@ -272,7 +303,7 @@ $products = $stmt->get_result();
                                 <form method="POST" action="cart_add.php">
                                     <input type="hidden" name="product_id" value="<?= $p['id'] ?>">
                                     <input type="hidden" name="quantity" value="1">
-                                    <button class="btn btn-sm btn-success">Add</button>
+                                    <button class="btn btn-sm btn-success add-btn">Add</button>
                                 </form>
                             <?php else: ?>
                                 <span class="text-danger">Out</span>
@@ -301,44 +332,65 @@ $products = $stmt->get_result();
             <tbody>
                 <?php
                 $cartItems = $conn->query("
-                SELECT oi.product_id, p.name, oi.quantity, oi.sell_price, oi.cost_price
-                FROM order_items oi
-                JOIN products p ON p.id = oi.product_id
-                WHERE oi.order_id = $order_id
-            ");
+    SELECT oi.product_id, p.name, oi.quantity, oi.sell_price, oi.cost_price, oi.discount_percent
+    FROM order_items oi
+    JOIN products p ON p.id = oi.product_id
+    WHERE oi.order_id = $order_id
+");
 
                 while ($item = $cartItems->fetch_assoc()):
-                    $item_total = $item['sell_price'] * $item['quantity'];
+
+                    $itemSubtotal = $item['sell_price'] * $item['quantity'];
+                    $itemDiscountPercent = $item['discount_percent'] ?? 0;
+                    $itemDiscount = $itemSubtotal * ($itemDiscountPercent / 100);
+                    $item_total = $itemSubtotal - $itemDiscount;
                 ?>
                     <tr>
                         <td><?= htmlspecialchars($item['name']) ?></td>
+
                         <td>
                             <form method="POST" action="cart_add.php">
                                 <input type="hidden" name="product_id" value="<?= $item['product_id'] ?>">
                                 <input type="hidden" name="cost_price" value="<?= $item['cost_price'] ?>">
-                                <input type="number" name="quantity" value="<?= $item['quantity'] ?>"
-                                    data-product-id="<?= $item['product_id'] ?>"
+                                <input type="number"
+                                    name="quantity"
+                                    value="<?= $item['quantity'] ?>"
                                     min="1"
-                                    class="form-control form-control-sm d-inline w-26 qty-input"
-                                    onclick="setActiveQty(this)">
+                                    class="form-control form-control-sm qty-input"
+                                    data-product-id="<?= $item['product_id'] ?>">
                             </form>
                         </td>
-                        <td><?= number_format($item_total, 2) ?></td>
-                        <td><a href="cart_remove.php?id=<?= $item['product_id'] ?>" class="btn btn-sm btn-danger">×</a></td>
+
+                        <td>
+                            <?= number_format($item_total, 2) ?>
+                            <?php if ($itemDiscountPercent > 0): ?>
+                                <br><small class="text-danger">-<?= $itemDiscountPercent ?>%</small>
+                            <?php endif; ?>
+                        </td>
+
+                        <td>
+                            <form method="POST" action="cart_discount.php" style="display:inline;">
+                                <input type="hidden" name="product_id" value="<?= $item['product_id'] ?>">
+                                <button name="discount" value="20" class="btn btn-sm btn-info">20%</button>
+                                <button name="discount" value="10" class="btn btn-sm btn-info">10%</button>
+                                <button name="discount" value="3" class="btn btn-sm btn-info">3%</button>
+                            </form>
+
+                            <a href="cart_remove.php?id=<?= $item['product_id'] ?>" class="btn btn-sm btn-danger">×</a>
+                        </td>
                     </tr>
                 <?php endwhile; ?>
             </tbody>
         </table>
 
-        <h5 class="text-end">Subtotal: ₱<?= number_format($total, 2) ?></h5>
-
+        <h5 class="text-end">Subtotal: ₱<?= number_format($total + $totalDiscountFromItems, 2) ?></h5>
+           
         <h6 class="text-end text-danger">
-            Discount (<?= $discountPercent ?>%) :
-            - ₱<?= number_format($discountAmount, 2) ?>
+            Item Discounts Applied: - ₱<?= number_format($totalDiscountFromItems, 2) ?>
         </h6>
 
         <h4 class="text-end text-success">
-            TOTAL: ₱<?= number_format($grandTotal, 2) ?>
+            TOTAL: ₱<?= number_format($total, 2) ?>
         </h4>
 
         <!-- Digital Keypad -->
@@ -359,7 +411,7 @@ $products = $stmt->get_result();
 
         <!-- Discount Buttons -->
 
-        <form method="post" class="mt-2">
+        <!-- <form method="post" class="mt-2">
             <button name="discount" value="20" class="btn btn-info w-100 mb-1">
                 Senior 20%
             </button>
@@ -375,7 +427,7 @@ $products = $stmt->get_result();
             <button name="clear_discount" class="btn btn-secondary w-100">
                 Clear Discount
             </button>
-        </form>
+        </form> -->
 
         <!-- Checkout / Suspend / New / Resume -->
         <a href="checkout.php?type=pos&discount=<?= $discountPercent ?>" class="btn btn-success btn-lg w-100 mt-3">CHECKOUT (F4)</a>
@@ -456,6 +508,122 @@ $products = $stmt->get_result();
             e.preventDefault();
             if (confirm("Cancel this order?")) window.location = "cancel_order.php";
         }
+    });
+</script>
+<script>
+    let currentIndex = -1;
+
+    function getRows() {
+        return document.querySelectorAll(".product-item");
+    }
+
+    function highlightRow(index) {
+        let rows = getRows();
+
+        rows.forEach(r => r.classList.remove("table-primary"));
+
+        if (rows[index]) {
+            rows[index].classList.add("table-primary");
+            rows[index].scrollIntoView({
+                block: "nearest"
+            });
+        }
+    }
+
+    document.addEventListener("keydown", function(e) {
+
+        let rows = getRows();
+        if (rows.length === 0) return;
+
+        // ⬇️ Arrow Down
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            currentIndex++;
+            if (currentIndex >= rows.length) currentIndex = 0;
+            highlightRow(currentIndex);
+        }
+
+        // ⬆️ Arrow Up
+        if (e.key === "ArrowUp") {
+            e.preventDefault();
+            currentIndex--;
+            if (currentIndex < 0) currentIndex = rows.length - 1;
+            highlightRow(currentIndex);
+        }
+
+        // ENTER = ADD PRODUCT
+        if (e.key === "Enter") {
+
+            let activeElement = document.activeElement;
+
+            // 🚫 Ignore when typing or editing
+            // Allow Enter in barcode, block only qty inputs
+            // 🚫 Block Enter when typing in search OR qty
+            if (
+                activeElement.id === "barcode" ||
+                activeElement.classList.contains("qty-input")
+            ) {
+                return;
+            }
+
+            e.preventDefault();
+
+            if (rows.length > 0) {
+
+                // if nothing selected yet → auto select first
+                if (currentIndex < 0) {
+                    currentIndex = 0;
+                }
+
+                let row = rows[currentIndex];
+                let btn = row.querySelector(".add-btn");
+
+                if (btn) {
+                    btn.click();
+
+                    // Reset selection
+                    currentIndex = -1;
+
+                    // Focus back to barcode for next scan
+                    setTimeout(() => {
+                        document.getElementById("barcode").focus();
+                    }, 100);
+                }
+            }
+        }
+    });
+
+    window.addEventListener("load", function() {
+
+        let rows = getRows();
+
+        if (rows.length > 0) {
+            currentIndex = 0;
+            highlightRow(currentIndex);
+        }
+
+        // ✅ If came from search → focus product list
+        if (sessionStorage.getItem("fromSearch") === "true") {
+
+            sessionStorage.removeItem("fromSearch");
+
+            // remove focus from input
+            document.getElementById("barcode").blur();
+        } else {
+            // default behavior
+            document.getElementById("barcode").focus();
+        }
+    });
+
+    document.getElementById("barcode").addEventListener("keydown", function(e) {
+
+        if (e.key === "Enter") {
+            // Let form submit normally (search)
+
+            // 🔥 Save state so we know it's from search
+            sessionStorage.setItem("fromSearch", "true");
+        }
+
     });
 </script>
 

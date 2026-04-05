@@ -11,22 +11,21 @@ $total_query = $conn->query("
 SELECT 
 COUNT(DISTINCT oi.order_id) AS total_orders,
 
-SUM(
+COALESCE(SUM(
 (oi.sell_price * oi.quantity)
 -
-((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
-) as total_sales,
+((oi.sell_price * oi.quantity) * (oi.discount_percent / 100))
+),0) as total_sales,
 
-SUM(
-(oi.sell_price * oi.quantity) * (o.discount_percent / 100)
-) as total_discount
+COALESCE(SUM(
+(oi.sell_price * oi.quantity) * (oi.discount_percent / 100)
+),0) as total_discount
 
 FROM order_items oi
 JOIN orders o ON o.id = oi.order_id
 WHERE DATE(o.created_at)=CURDATE()
 AND o.status != 'Voided'
 ");
-
 
 $rowTotal = $total_query->fetch_assoc();
 
@@ -40,22 +39,26 @@ PAYMENT SALES
 
 function getTotal($method, $conn)
 {
-    $q = $conn->query("
-    SELECT SUM(
-    (oi.sell_price * oi.quantity)
-    -
-    ((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
-    ) as total
+    $stmt = $conn->prepare("
+    SELECT COALESCE(SUM(
+        (oi.sell_price * oi.quantity)
+        -
+        ((oi.sell_price * oi.quantity) * (oi.discount_percent / 100))
+    ),0) as total
 
     FROM order_items oi
     JOIN orders o ON o.id = oi.order_id
-    WHERE o.payment_method='$method'
+    WHERE o.payment_method = ?
     AND o.status != 'Voided'
     AND DATE(o.created_at)=CURDATE()
     ");
 
-    $r = $q->fetch_assoc();
-    return $r['total'] ?? 0;
+    $stmt->bind_param("s", $method);
+    $stmt->execute();
+
+    $res = $stmt->get_result()->fetch_assoc();
+
+    return $res['total'] ?? 0;
 }
 
 $cash  = getTotal("Cash", $conn);
@@ -73,23 +76,26 @@ cs.cashier_id,
 COALESCE(u.name, CONCAT('Cashier #', cs.cashier_id)) AS cashier_name,
 cs.opening_cash,
 
-SUM(CASE 
+COALESCE(SUM(CASE 
     WHEN o.payment_method = 'Cash' 
-    THEN (oi.sell_price * oi.quantity) - ((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
+    THEN (oi.sell_price * oi.quantity) 
+         - ((oi.sell_price * oi.quantity) * (oi.discount_percent / 100))
     ELSE 0 END
-) as cash_sales,
+),0) as cash_sales,
 
-SUM(CASE 
+COALESCE(SUM(CASE 
     WHEN o.payment_method = 'GCash' 
-    THEN (oi.sell_price * oi.quantity) - ((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
+    THEN (oi.sell_price * oi.quantity) 
+         - ((oi.sell_price * oi.quantity) * (oi.discount_percent / 100))
     ELSE 0 END
-) as gcash_sales,
+),0) as gcash_sales,
 
-SUM(CASE 
+COALESCE(SUM(CASE 
     WHEN o.payment_method = 'Card' 
-    THEN (oi.sell_price * oi.quantity) - ((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
+    THEN (oi.sell_price * oi.quantity) 
+         - ((oi.sell_price * oi.quantity) * (oi.discount_percent / 100))
     ELSE 0 END
-) as card_sales
+),0) as card_sales
 
 FROM cashier_shift cs
 
@@ -224,9 +230,11 @@ if (isset($_POST['save_z'])) {
 
     <p>Total Orders: <?= $totalOrders ?></p>
 
+    <p>Gross Sales: ₱<?= number_format($totalSales + $totalDiscount, 2) ?></p>
+
     <p>Total Discount: ₱<?= number_format($totalDiscount, 2) ?></p>
 
-    <p>Total Sales: ₱<?= number_format($totalSales, 2) ?></p>
+    <p><strong>Net Sales: ₱<?= number_format($totalSales, 2) ?></strong></p>
 
     <hr>
 

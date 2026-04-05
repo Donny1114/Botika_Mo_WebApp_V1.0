@@ -18,7 +18,7 @@ SELECT
     p.id,
     p.name,
     p.sku,
-    p.cost_price AS cost_price,
+    p.cost_price,
     p.price AS sell_price,
 
     SUM(oi.quantity) AS qty_sold,
@@ -26,26 +26,28 @@ SELECT
     SUM(oi.quantity * oi.sell_price) AS gross_sales,
 
     SUM(
-    (oi.sell_price * oi.quantity)
-    * (o.discount_percent / 100)
+        (oi.quantity * oi.sell_price)
+        * (IFNULL(oi.discount_percent, 0) / 100)
     ) AS discount_total,
 
     SUM(
-    (oi.sell_price * oi.quantity)
-    -
-    ((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
+        (oi.quantity * oi.sell_price)
+        -
+        ((oi.quantity * oi.sell_price)
+        * (IFNULL(oi.discount_percent, 0) / 100))
     ) AS net_sales,
 
     SUM(oi.quantity * oi.cost_price) AS total_cost,
 
     SUM(
-    (
-    (oi.sell_price * oi.quantity)
-    -
-    ((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
-    )
-    -
-    (oi.cost_price * oi.quantity)
+        (
+            (oi.quantity * oi.sell_price)
+            -
+            ((oi.quantity * oi.sell_price)
+            * (IFNULL(oi.discount_percent, 0) / 100))
+        )
+        -
+        (oi.quantity * oi.cost_price)
     ) AS net_profit
 
 FROM order_items oi
@@ -103,6 +105,7 @@ if (isset($_GET['export'])) {
 
         $out = fopen("php://output", "w");
 
+        // HEADER
         fputcsv($out, [
             'Product',
             'SKU',
@@ -117,7 +120,6 @@ if (isset($_GET['export'])) {
         ]);
 
         foreach ($rows as $r) {
-
             fputcsv($out, [
                 $r['name'],
                 $r['sku'],
@@ -131,6 +133,20 @@ if (isset($_GET['export'])) {
                 $r['net_profit']
             ]);
         }
+
+        // ✅ ADD TOTAL ROW (FIXED)
+        fputcsv($out, [
+            'TOTAL',
+            '',
+            '',
+            '',
+            $totalSold,
+            $totalSales,
+            $totalDiscount,
+            $totalSales - $totalDiscount,
+            $totalCost,
+            $totalProfit
+        ]);
 
         fclose($out);
         exit;
@@ -152,55 +168,55 @@ if (isset($_GET['export'])) {
 
         $html = "<h2>Product Profit Report ($startDate to $endDate)</h2>";
 
-        $html .= "<table border='1' cellpadding='5'>
-		
-        <tr>
-        <th>Product</th>
-        <th>SKU</th>
-        <th>Cost</th>
-        <th>Sell</th>
-        <th>Qty</th>
-        <th>Gross Sales</th>
-        <th>Discount Total</th>
-        <th>Net Sales</th>
-        <th>Total Cost</th>
-        <th>Net Profit</th>
-        </tr>";
+        $html .= "
+        <table border='1' cellpadding='4'>
+        
+        <tr style='font-weight:bold; background-color:#f0f0f0;'>
+            <th width='18%'>Product</th>
+            <th width='10%'>SKU</th>
+            <th width='8%'>Cost</th>
+            <th width='8%'>Sell</th>
+            <th width='8%'>Qty</th>
+            <th width='12%'>Gross Sales</th>
+            <th width='12%'>Discount</th>
+            <th width='12%'>Net Sales</th>
+            <th width='12%'>Total Cost</th>
+            <th width='10%'>Net Profit</th>
+        </tr>
+        
+        
+        ";
 
         foreach ($rows as $r) {
 
             $html .= "<tr>
-            <td>{$r['name']}</td>
-            <td>{$r['sku']}</td>
-            <td>PHP " . number_format($r['cost_price'], 2) . "</td>
-            <td>PHP " . number_format($r['sell_price'], 2) . "</td>
-            <td>{$r['qty_sold']}</td>
-            <td>PHP " . number_format($r['gross_sales'], 2) . "</td>
-            <td>PHP " . number_format($r['discount_total'], 2) . "</td>
-            <td>PHP " . number_format($r['net_sales'], 2) . "</td>
-            <td>PHP " . number_format($r['total_cost'], 2) . "</td>
-            <td>PHP " . number_format($r['net_profit'], 2) . "</td>
+                <td>{$r['name']}</td>
+                <td>{$r['sku']}</td>
+                <td>P" . number_format($r['cost_price'], 2) . "</td>
+                <td>P" . number_format($r['sell_price'], 2) . "</td>
+                <td>{$r['qty_sold']}</td>
+                <td>P" . number_format($r['gross_sales'], 2) . "</td>
+                <td>P" . number_format($r['discount_total'], 2) . "</td>
+                <td>P" . number_format($r['net_sales'], 2) . "</td>
+                <td>P" . number_format($r['total_cost'], 2) . "</td>
+                <td>P" . number_format($r['net_profit'], 2) . "</td>
             </tr>";
         }
 
         $html .= "
-        <tr>
-        <td colspan='4'><b>TOTAL</b></td>
-        <td>$totalSold</td>
-        <td>PHP " . number_format($totalSales, 2) . "</td>
-        <td>PHP " . number_format($totalCost, 2) . "</td>
-        <td>PHP " . number_format($totalProfit, 2) . "</td>
-        </tr>";
-
-
-
-
-
-
-
-
-
-
+            <tr style='font-weight:bold; background-color:#d9edf7;'>
+                <td width='18%' colspan='2' align='right'>TOTAL</td>
+                <td width='8%'></td>
+                <td width='8%'></td>
+                <td width='8%'></td>
+                <td width='8%' align='center'>{$totalSold}</td>
+                <td width='12%' align='right'>P" . number_format($totalSales, 2) . "</td>
+                <td width='12%' align='right'>P" . number_format($totalDiscount, 2) . "</td>
+                <td width='12%' align='right'>P" . number_format($totalSales - $totalDiscount, 2) . "</td>
+                <td width='12%' align='right'>P" . number_format($totalCost, 2) . "</td>
+                <td width='10%' align='right'>P" . number_format($totalProfit, 2) . "</td>
+            </tr>
+            ";
 
 
 

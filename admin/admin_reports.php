@@ -48,22 +48,25 @@ $sql = "
 
         SUM(oi.quantity * oi.cost_price) AS total_cogs,
 
+        -- ✅ ITEM DISCOUNT (FIXED)
         SUM(
             (oi.quantity * oi.sell_price)
-            * (o.discount_percent / 100)
+            * (oi.discount_percent / 100)
         ) AS discount_total,
 
+        -- ✅ NET SALES (AFTER ITEM DISCOUNT)
         SUM(
             (oi.quantity * oi.sell_price)
             -
-            ((oi.quantity * oi.sell_price) * (o.discount_percent / 100))
+            ((oi.quantity * oi.sell_price) * (oi.discount_percent / 100))
         ) AS net_sales,
 
+        -- ✅ NET PROFIT (CORRECT)
         SUM(
             (
                 (oi.quantity * oi.sell_price)
                 -
-                ((oi.quantity * oi.sell_price) * (o.discount_percent / 100))
+                ((oi.quantity * oi.sell_price) * (oi.discount_percent / 100))
             )
             -
             (oi.quantity * oi.cost_price)
@@ -110,7 +113,11 @@ while ($row = mysqli_fetch_assoc($result)) {
 }
 // Cash Drawer Sales Today
 $cash_sales = $conn->query("
-SELECT SUM(sell_price * quantity) as total
+SELECT SUM(
+    (oi.sell_price * oi.quantity)
+    -
+    ((oi.sell_price * oi.quantity) * (oi.discount_percent / 100))
+) as total
 FROM order_items oi
 JOIN orders o ON o.id = oi.order_id
 WHERE o.payment_method='Cash'
@@ -247,12 +254,12 @@ AND status != 'Voided'
     <table class="table table-bordered table-striped">
         <thead>
             <tr>
+                <th>Period</th>
                 <th>Gross Sales</th>
-                </th>Net Sales</th>
+                <th>Net Sales</th>
                 <th>Discount</th>
                 <th>COGS</th>
                 <th>Net Profit</th>
-                <th>Total Orders</th>
                 <th>No. of Orders</th>
             </tr>
         </thead>

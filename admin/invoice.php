@@ -53,7 +53,7 @@ if (!$order) {
 $stmt = mysqli_prepare(
     $conn,
     "
-    SELECT oi.quantity, oi.sell_price, p.name
+    SELECT oi.quantity, oi.sell_price, oi.discount_percent, p.name
     FROM order_items oi
     JOIN products p ON oi.product_id = p.id
     WHERE oi.order_id = ?
@@ -125,7 +125,7 @@ $pdf->Cell(
 $pdf->Cell(
     0,
     6,
-    'Phone: +639671797111 | botikamo24@gmail.com',
+    'Phone: +639671797111 | botikamounion@gmail.com',
     0,
     1,
     'C'
@@ -180,55 +180,33 @@ Payment: {$order['payment_method']}
 ";
 
 $subtotal = 0;
+$totalDiscount = 0;
+$grandTotal = 0;
 
 while ($item = mysqli_fetch_assoc($itemsResult)) {
 
-    $lineTotal =
-        $item['quantity']
-        *
-        $item['sell_price'];
+    $itemSubtotal = $item['quantity'] * $item['sell_price'];
 
-    $subtotal += $lineTotal;
+    $itemDiscountPercent = $item['discount_percent'] ?? 0;
+    $itemDiscount = $itemSubtotal * ($itemDiscountPercent / 100);
+
+    $lineTotal = $itemSubtotal - $itemDiscount;
+
+    $subtotal += $itemSubtotal;        // before discount
+    $totalDiscount += $itemDiscount;   // total discount
+    $grandTotal += $lineTotal;         // after discount
 
     $html .= "
-
     <tr>
         <td>{$item['name']}</td>
         <td align='center'>{$item['quantity']}</td>
-        <td align='right'>"
-        . number_format(
-            $item['sell_price'],
-            2
-        ) .
-        "</td>
-        <td align='right'>"
-        . number_format(
-            $lineTotal,
-            2
-        ) .
-        "</td>
+        <td align='right'>" . number_format($item['sell_price'], 2) . "</td>
+        <td align='right'>" . number_format($lineTotal, 2) . "</td>
     </tr>
-
     ";
 }
 
 
-/* =========================
-   DISCOUNT CALC (NEW)
-========================= */
-
-$discountPercent =
-    (float)($order['discount_percent'] ?? 0);
-
-$discountAmount =
-    $subtotal
-    *
-    ($discountPercent / 100);
-
-$grandTotal =
-    $subtotal
-    -
-    $discountAmount;
 
 
 /* =========================
@@ -238,51 +216,34 @@ $grandTotal =
 $html .= "
 
 <tr>
-<td colspan='3' align='right'>
-Subtotal
-</td>
-<td align='right'>
-" . number_format($subtotal, 2) . "
-</td>
+<td colspan='3' align='right'>Subtotal</td>
+<td align='right'>" . number_format($subtotal, 2) . "</td>
 </tr>
 
 ";
 
-
-if ($discountPercent > 0) {
+if ($totalDiscount > 0) {
 
 $html .= "
 
 <tr>
-<td colspan='3' align='right'>
-Discount ({$discountPercent}%)
-</td>
-<td align='right'>
-- "
-. number_format($discountAmount, 2)
-. "
-</td>
+<td colspan='3' align='right'>Discount</td>
+<td align='right'>- " . number_format($totalDiscount, 2) . "</td>
 </tr>
 
 ";
 
 }
 
-
 $html .= "
 
 <tr>
-<td colspan='3' align='right'>
-<b>Total</b>
-</td>
-<td align='right'>
-<b>"
-. number_format($grandTotal, 2)
-. "</b>
-</td>
+<td colspan='3' align='right'><b>Total</b></td>
+<td align='right'><b>" . number_format($grandTotal, 2) . "</b></td>
 </tr>
 
 </table>
+
 
 <br><br>
 

@@ -3,11 +3,7 @@
 include 'header.php';
 include '../db.php';
 
-// session_start();
-// if (!isset($_SESSION['admin'])) {
-//     header("Location: ../login.php"); // Redirect to login or homepage
-//     exit;
-// }
+
 
 /* -------------------------
    Pagination + Search Logic

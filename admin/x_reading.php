@@ -7,13 +7,8 @@ include '../db.php';
    CASH SALES TODAY
 ========================= */
 $cash_sales = $conn->query("
-SELECT SUM(
-(oi.sell_price * oi.quantity)
--
-((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
-) as total
-FROM order_items oi
-JOIN orders o ON o.id = oi.order_id
+SELECT SUM(o.grand_total) as total
+FROM orders o
 WHERE o.payment_method='Cash'
 AND o.status != 'Voided'
 AND DATE(o.created_at)=CURDATE()
@@ -27,13 +22,8 @@ $cash = $rowCash['total'] ?? 0;
    GCASH SALES TODAY
 ========================= */
 $gcash_sales = $conn->query("
-SELECT SUM(
-(oi.sell_price * oi.quantity)
--
-((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
-) as total
-FROM order_items oi
-JOIN orders o ON o.id = oi.order_id
+SELECT SUM(o.grand_total) as total
+FROM orders o
 WHERE o.payment_method='GCash'
 AND o.status != 'Voided'
 AND DATE(o.created_at)=CURDATE()
@@ -47,13 +37,8 @@ $gcash = $rowGCash['total'] ?? 0;
    CARD SALES TODAY
 ========================= */
 $card_sales = $conn->query("
-SELECT SUM(
-(oi.sell_price * oi.quantity)
--
-((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
-) as total
-FROM order_items oi
-JOIN orders o ON o.id = oi.order_id
+SELECT SUM(o.grand_total) as total
+FROM orders o
 WHERE o.payment_method='Card'
 AND o.status != 'Voided'
 AND DATE(o.created_at)=CURDATE()
@@ -66,23 +51,24 @@ $card = $rowCard['total'] ?? 0;
    TOTAL SALES + TOTAL ORDERS
 ========================= */
 
+
 $total_query = $conn->query("
 SELECT 
 COUNT(DISTINCT oi.order_id) AS total_orders,
 
-SUM(
+COALESCE(SUM(
 (oi.sell_price * oi.quantity)
 -
-((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
-) as total_sales,
+((oi.sell_price * oi.quantity) * (oi.discount_percent / 100))
+),0) as total_sales,
 
-SUM(
-(oi.sell_price * oi.quantity) * (o.discount_percent / 100)
-) as total_discount
+COALESCE(SUM(
+(oi.sell_price * oi.quantity) * (oi.discount_percent / 100)
+),0) as total_discount
 
 FROM order_items oi
 JOIN orders o ON o.id = oi.order_id
-WHERE DATE(created_at)=CURDATE()
+WHERE DATE(o.created_at)=CURDATE()
 AND o.status != 'Voided'
 ");
 
@@ -116,6 +102,7 @@ $expected_cash = $opening + $cash;
 CASHIER BREAKDOWN (FIXED)
 ====================== */
 
+
 $cashier_query = $conn->query("
 SELECT 
 cs.id,
@@ -125,19 +112,19 @@ cs.opening_cash,
 
 SUM(CASE 
     WHEN o.payment_method = 'Cash' 
-    THEN (oi.sell_price * oi.quantity) - ((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
+    THEN o.grand_total
     ELSE 0 END
 ) as cash_sales,
 
 SUM(CASE 
     WHEN o.payment_method = 'GCash' 
-    THEN (oi.sell_price * oi.quantity) - ((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
+    THEN o.grand_total
     ELSE 0 END
 ) as gcash_sales,
 
 SUM(CASE 
     WHEN o.payment_method = 'Card' 
-    THEN (oi.sell_price * oi.quantity) - ((oi.sell_price * oi.quantity) * (o.discount_percent / 100))
+    THEN o.grand_total
     ELSE 0 END
 ) as card_sales
 
@@ -151,10 +138,7 @@ ON o.cashier_id = cs.cashier_id
 AND DATE(o.created_at)=CURDATE()
 AND o.status != 'Voided'
 
-LEFT JOIN order_items oi 
-ON oi.order_id = o.id
-
-WHERE DATE(cs.open_time) = CURDATE()  -- only include shifts that started today
+WHERE DATE(cs.open_time) = CURDATE()
 
 GROUP BY cs.id
 ");

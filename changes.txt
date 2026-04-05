@@ -6,3 +6,9 @@ march 31,2026 changes for Botika Mo V1.0
 Aprl 1 2026
 1. Header.php (root)- change the color to blue.
 2. footer.php (root) - change version to 1.0.1
+
+
+April5 2026
+1. Added the back button in checkout page
+2. Added the discount per item in order items(remove the global total discount)
+3. Added the arrow and enter option to punch

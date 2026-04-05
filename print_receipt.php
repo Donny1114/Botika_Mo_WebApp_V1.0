@@ -96,10 +96,25 @@ WHERE oi.order_id=$order_id
 
     <table>
         <?php
-        $total = 0;
+        $totalBefore = 0;
+        $totalAfter = 0;
+        $totalItemDiscount = 0;
+
         while ($row = mysqli_fetch_assoc($items)) {
-            $subtotal = $row['quantity'] * $row['sell_price'];
-            $total += $subtotal;
+
+            $price = $row['sell_price'];
+            $qty   = $row['quantity'];
+
+            $itemSubtotal = $price * $qty;
+
+            $itemDiscountPercent = $row['discount_percent'] ?? 0;
+            $itemDiscountAmount  = $itemSubtotal * ($itemDiscountPercent / 100);
+
+            $finalItemTotal = $itemSubtotal - $itemDiscountAmount;
+
+            $totalBefore += $itemSubtotal;
+            $totalAfter  += $finalItemTotal;
+            $totalItemDiscount += $itemDiscountAmount;
         ?>
 
             <tr>
@@ -107,8 +122,13 @@ WHERE oi.order_id=$order_id
             </tr>
 
             <tr>
-                <td><?= $row['quantity'] ?> x <?= $row['sell_price'] ?></td>
-                <td align="right"><?= number_format($subtotal, 2) ?></td>
+                <td>
+                    <?= $qty ?> x <?= number_format($price, 2) ?>
+                    <?php if ($itemDiscountPercent > 0): ?>
+                        <br><small>-<?= $itemDiscountPercent ?>%</small>
+                    <?php endif; ?>
+                </td>
+                <td align="right"><?= number_format($finalItemTotal, 2) ?></td>
             </tr>
 
         <?php } ?>
@@ -121,29 +141,22 @@ WHERE oi.order_id=$order_id
     <table>
         <tr>
             <td>Subtotal</td>
-            <td align="right">₱<?= number_format($total, 2) ?></td>
+            <td align="right">₱<?= number_format((float)$totalBefore, 2) ?></td>
         </tr>
 
-        <?php if ($discountPercent > 0): ?>
+        <table>
+            
 
             <tr>
-                <td>Discount (<?= $discountPercent ?>%)</td>
-                <td align="right">- ₱<?= number_format($discountAmount, 2) ?></td>
+                <td>Item Discount</td>
+                <td align="right">- ₱<?= number_format($totalItemDiscount, 2) ?></td>
             </tr>
 
             <tr>
                 <td><strong>Total</strong></td>
                 <td align="right"><strong>₱<?= number_format($grandTotal, 2) ?></strong></td>
             </tr>
-
-        <?php else: ?>
-
-            <tr>
-                <td><strong>Total</strong></td>
-                <td align="right"><strong>₱<?= number_format($total, 2) ?></strong></td>
-            </tr>
-
-        <?php endif; ?>
+        </table>
 
     </table>
 

@@ -16,23 +16,45 @@ $error = "";
 // =============================
 $discountPercent = $_SESSION['discount_percent'] ?? 0;
 
+
+
 // Fetch order items and total
-$orderItems = $conn->query("
-    SELECT oi.product_id, p.name, oi.quantity, oi.sell_price
+$items = $conn->query("
+    SELECT oi.product_id,
+           p.name,
+           oi.quantity,
+           oi.sell_price,
+           oi.discount_percent
     FROM order_items oi
     JOIN products p ON p.id = oi.product_id
     WHERE oi.order_id = $order_id
 ");
 
-$total = 0;
-while ($item = $orderItems->fetch_assoc()) {
-    $total += $item['sell_price'] * $item['quantity'];
+$subtotalBefore = 0;
+$subtotalAfter = 0;
+$totalItemDiscount = 0;
+
+while ($item = $items->fetch_assoc()) {
+
+    $price = $item['sell_price'];
+    $qty = $item['quantity'];
+
+    $itemTotal = $price * $qty;
+
+    $itemDiscountPercent = $item['discount_percent'] ?? 0;
+    $itemDiscountAmount = $itemTotal * ($itemDiscountPercent / 100);
+
+    $finalItemTotal = $itemTotal - $itemDiscountAmount;
+
+    $subtotalBefore += $itemTotal;
+    $subtotalAfter += $finalItemTotal;
+    $totalItemDiscount += $itemDiscountAmount;
 }
+// $discountPercent = $_SESSION['discount_percent'] ?? 0;
 
-$discountAmount = $total * ($discountPercent / 100);
-$grandTotal = $total - $discountAmount;
-
-
+// $discountAmount = $total * ($discountPercent / 100);
+// $grandTotal = $total - $discountAmount;
+$grandTotal = $subtotalAfter;
 // =============================
 // CHECKOUT
 // =============================
@@ -62,10 +84,12 @@ if (isset($_POST['checkout'])) {
     WHERE id=?
 ");
 
+        $discountAmount = $subtotalBefore - $subtotalAfter;
+
         $stmt->bind_param(
             "sddddi",
             $payment_method,
-            $total,
+            $subtotalBefore,
             $discountPercent,
             $discountAmount,
             $grandTotal,
@@ -96,6 +120,10 @@ if (isset($_POST['checkout'])) {
 }
 ?>
 
+<a href="order.php?type=pos" class="btn btn-secondary mb-3">
+    ← Back to Order
+</a>
+
 <h3>Checkout</h3>
 <?php if (!empty($error)): ?>
     <div class="alert alert-danger">
@@ -114,8 +142,8 @@ if (isset($_POST['checkout'])) {
     </thead>
     <tbody>
         <?php
-        $orderItems->data_seek(0);
-        while ($item = $orderItems->fetch_assoc()):
+        $items->data_seek(0);
+        while ($item = $items->fetch_assoc()):
             $subtotal = $item['sell_price'] * $item['quantity'];
         ?>
             <tr>
@@ -128,11 +156,13 @@ if (isset($_POST['checkout'])) {
     </tbody>
 </table>
 
-<h5>Subtotal: ₱<?= number_format($total, 2) ?></h5>
+Subtotal: ₱<?= number_format($subtotalBefore, 2) ?><br>
+Discounted Total: ₱<?= number_format($subtotalAfter, 2) ?><br>
+
 
 <h6 class="text-danger">
-    Discount (<?= $discountPercent ?>%) :
-    - ₱<?= number_format($discountAmount, 2) ?>
+    Item Discount Applied:
+    - ₱<?= number_format($totalItemDiscount, 2) ?>
 </h6>
 
 <h4 class="text-success">
@@ -196,7 +226,7 @@ if (isset($_POST['checkout'])) {
 
 
 <script>
-    const totalAmount = <?= $grandTotal ?>;
+    const totalAmount = <?= $grandTotal ?? 0 ?>;
     const amountInput = document.getElementById('amount_paid');
     const changeInput = document.getElementById('change');
 
@@ -254,5 +284,13 @@ if (isset($_POST['checkout'])) {
             }
         }
 
+    });
+</script>
+<script>
+    // ESC KEY = BACK TO ORDER
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            window.location.href = "order.php?type=pos";
+        }
     });
 </script>
