@@ -357,7 +357,9 @@ $products = $stmt->get_result();
                                     value="<?= $item['quantity'] ?>"
                                     min="1"
                                     class="form-control form-control-sm qty-input"
-                                    data-product-id="<?= $item['product_id'] ?>">
+                                    data-product-id="<?= $item['product_id'] ?>"
+                                    onclick="setActiveQty(this)"
+                                    onfocus="setActiveQty(this)">
                             </form>
                         </td>
 
@@ -384,7 +386,7 @@ $products = $stmt->get_result();
         </table>
 
         <h5 class="text-end">Subtotal: ₱<?= number_format($total + $totalDiscountFromItems, 2) ?></h5>
-           
+
         <h6 class="text-end text-danger">
             Item Discounts Applied: - ₱<?= number_format($totalDiscountFromItems, 2) ?>
         </h6>
@@ -450,7 +452,17 @@ $products = $stmt->get_result();
     function setActiveQty(input) {
         activeInput = input;
         activeInput.value = '';
+        // highlight active field (optional UX)
+        document.querySelectorAll('.qty-input').forEach(i => i.style.border = '');
+        input.style.border = '2px solid #0d6efd';
     }
+
+
+    document.querySelectorAll('.qty-input').forEach(input => {
+        input.addEventListener('input', function() {
+            activeInput = this;
+        });
+    });
 
     function pressKey(num) {
         if (!activeInput) {

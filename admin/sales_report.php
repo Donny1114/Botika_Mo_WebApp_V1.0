@@ -115,6 +115,7 @@ if (isset($_GET['export'])) {
         require_once __DIR__ . '/../vendor/autoload.php'; // TCPDF
         if (ob_get_length()) ob_end_clean();
         $pdf = new TCPDF();
+        $pdf->SetFont('dejavusans', '', 10); // ✅ supports ₱
         $pdf->AddPage();
         $html = "<h2>Sales Report ($startDate to $endDate)</h2>
         <table border='1' cellpadding='5'>
@@ -140,6 +141,7 @@ if (isset($_GET['export'])) {
                   </tr>";
 
         $html .= "</tbody></table>";
+        $html = mb_convert_encoding($html, 'UTF-8', 'UTF-8');
         $pdf->writeHTML($html);
         $pdf->Output('sales_report.pdf', 'D');
         exit;

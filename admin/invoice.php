@@ -82,102 +82,37 @@ ob_clean();
 // PDF
 // --------------------
 
-$pdf = new TCPDF();
+// --------------------
+// PDF (58mm RECEIPT)
+// --------------------
 
-$pdf->SetCreator(PDF_CREATOR);
-$pdf->SetAuthor('Botika Mo');
-$pdf->SetTitle('Invoice');
-
-$pdf->SetMargins(15, 20, 15);
+$pdf = new TCPDF('P', 'mm', array(58, 200)); // 58mm width
+$pdf->SetMargins(3, 5, 3);
 $pdf->AddPage();
 
-$pdf->SetFont('helvetica', 'B', 16);
-
-$pdf->Cell(
-    0,
-    10,
-    'Botika Mo Pharmacy',
-    0,
-    1,
-    'C'
-);
-
-$pdf->SetFont('helvetica', '', 10);
-
-$pdf->Cell(
-    0,
-    6,
-    'Union, Libertad',
-    0,
-    1,
-    'C'
-);
-
-$pdf->Cell(
-    0,
-    6,
-    'Antique, Philippines',
-    0,
-    1,
-    'C'
-);
-
-$pdf->Cell(
-    0,
-    6,
-    'Phone: +639671797111 | botikamounion@gmail.com',
-    0,
-    1,
-    'C'
-);
-
-$pdf->Line(
-    15,
-    $pdf->GetY(),
-    195,
-    $pdf->GetY()
-);
-
-$pdf->Ln(6);
-
+$pdf->SetFont('courier', '', 8); // small font for receipt
 
 // --------------------
-// HTML
+// HEADER
 // --------------------
 
 $html = "
+<div style='text-align:center;'>
+    <b>BOTIKA MO PHARMACY</b><br>
+    Union, Libertad<br>
+    Antique, Philippines<br>
+    -----------------------------<br>
+</div>
 
-<h3>Invoice #{$order_id}</h3>
-
-<p>
+Invoice #: {$order_id}<br>
 Date: {$order['created_at']}<br>
-Status: {$order['status']}<br>
-Payment: {$order['payment_method']}
-</p>
-
-<hr>
-
-<h4>Customer</h4>
-
-<p>
-" . htmlspecialchars($order['customer_name'] ?? '-') . "<br>
-" . htmlspecialchars($order['customer_email'] ?? '-') . "<br>
-" . htmlspecialchars($order['customer_phone'] ?? '-') . "<br>
-" . nl2br(htmlspecialchars($order['delivery_address'] ?? '-')) . "
-</p>
-
-<h4>Items</h4>
-
-<table border='1' cellpadding='5'>
-
-<tr>
-<th>Product</th>
-<th>Qty</th>
-<th>Price</th>
-<th>Total</th>
-</tr>
-
+Payment: {$order['payment_method']}<br>
+--------------------------------<br>
 ";
+
+// --------------------
+// ITEMS
+// --------------------
 
 $subtotal = 0;
 $totalDiscount = 0;
@@ -192,128 +127,81 @@ while ($item = mysqli_fetch_assoc($itemsResult)) {
 
     $lineTotal = $itemSubtotal - $itemDiscount;
 
-    $subtotal += $itemSubtotal;        // before discount
-    $totalDiscount += $itemDiscount;   // total discount
-    $grandTotal += $lineTotal;         // after discount
+    $subtotal += $itemSubtotal;
+    $totalDiscount += $itemDiscount;
+    $grandTotal += $lineTotal;
 
     $html .= "
-    <tr>
-        <td>{$item['name']}</td>
-        <td align='center'>{$item['quantity']}</td>
-        <td align='right'>" . number_format($item['sell_price'], 2) . "</td>
-        <td align='right'>" . number_format($lineTotal, 2) . "</td>
-    </tr>
+    {$item['name']}<br>
+    {$item['quantity']} x " . number_format($item['sell_price'], 2) . "
+    = " . number_format($lineTotal, 2) . "<br>
     ";
+
+    if ($itemDiscountPercent > 0) {
+        $html .= "<small>  (-{$itemDiscountPercent}%)</small><br>";
+    }
+
+    $html .= "--------------------------------<br>";
 }
 
-
-
-
-/* =========================
-   TOTAL ROWS (UPDATED)
-========================= */
+// --------------------
+// TOTALS
+// --------------------
 
 $html .= "
-
-<tr>
-<td colspan='3' align='right'>Subtotal</td>
-<td align='right'>" . number_format($subtotal, 2) . "</td>
-</tr>
-
+Subtotal: " . number_format($subtotal, 2) . "<br>
 ";
 
 if ($totalDiscount > 0) {
-
-$html .= "
-
-<tr>
-<td colspan='3' align='right'>Discount</td>
-<td align='right'>- " . number_format($totalDiscount, 2) . "</td>
-</tr>
-
-";
-
+    $html .= "Discount: - " . number_format($totalDiscount, 2) . "<br>";
 }
 
 $html .= "
-
-<tr>
-<td colspan='3' align='right'><b>Total</b></td>
-<td align='right'><b>" . number_format($grandTotal, 2) . "</b></td>
-</tr>
-
-</table>
-
-
-<br><br>
-
-Thank you for shopping at Botika Mo!<br>
-
+<b>TOTAL: " . number_format($grandTotal, 2) . "</b><br>
+--------------------------------<br>
 ";
 
-$pdf->writeHTML($html);
+// --------------------
+// FOOTER
+// --------------------
+
+$html .= "
+<div style='text-align:center;'>
+    Thank you for shopping!<br>
+</div>
+";
+
+// --------------------
+// PRINT
+// --------------------
+
+$pdf->writeHTML($html, true, false, true, false, '');
 
 
 // --------------------
-// GCash QR
+// GCash QR (RESIZED)
 // --------------------
 
 if ($order['payment_method'] === 'GCash') {
 
-    $pdf->Ln(10);
+    $pdf->Ln(3);
 
-    $pdf->SetFont(
-        'helvetica',
-        'B',
-        11
-    );
-
-    $pdf->Cell(
-        0,
-        8,
-        'Scan to Pay via GCash',
-        0,
-        1,
-        'C'
-    );
-
-    $qrPath =
-        __DIR__
-        . '/assets/images/gcash_qr.png';
+    $qrPath = __DIR__ . '/assets/images/gcash_qr.png';
 
     if (file_exists($qrPath)) {
 
         $pdf->Image(
             $qrPath,
-            ($pdf->GetPageWidth() - 50) / 2,
+            ($pdf->GetPageWidth() - 30) / 2,
             $pdf->GetY(),
-            50
+            30
         );
 
-        $pdf->Ln(55);
+        $pdf->Ln(32);
     }
 
-    $pdf->SetFont(
-        'helvetica',
-        '',
-        10
-    );
-
-    $pdf->MultiCell(
-        0,
-        6,
-        "Please send payment and include Order Number.",
-        0,
-        'C'
-    );
+    $pdf->MultiCell(0, 4, "Scan to Pay", 0, 'C');
 }
 
-
-ob_end_clean();
-
-$pdf->Output(
-    "invoice_{$order_id}.pdf",
-    "I"
-);
-
+$pdf->Output("invoice_{$order_id}.pdf", "I");
 exit;
