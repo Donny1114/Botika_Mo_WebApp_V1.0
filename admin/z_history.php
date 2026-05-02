@@ -20,25 +20,28 @@ include '../db.php';
             </tr>
         </thead>
         <tbody>
-        <?php
-        $q = $conn->query("SELECT * FROM z_reading ORDER BY date DESC");
-        while($row = $q->fetch_assoc()):
-        ?>
-            <tr>
-                <td><?= $row['id'] ?></td>
-                <td><?= $row['date'] ?></td>
-                <td><?= $row['total_orders'] ?></td>
-                <td>₱<?= number_format($row['total_sales'],2) ?></td>
-                <td>₱<?= number_format($row['total_discount'],2) ?></td>
-                <td>₱<?= number_format($row['closing_cash'],2) ?></td>
-                <td>
-                    <a href="z_view.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-primary">View</a>
-                </td>
-                <td>
-                    <a href="z_print.php?id=<?= $row['id'] ?>" target="_blank" class="btn btn-sm btn-success">Print</a>
-                </td>
-            </tr>
-        <?php endwhile; ?>
+            <?php
+            $limit = 50;
+            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+            $offset = ($page - 1) * $limit;
+            $q = $conn->query("SELECT * FROM z_reading ORDER BY date DESC LIMIT $limit OFFSET $offset");
+            while ($row = $q->fetch_assoc()):
+            ?>
+                <tr>
+                    <td><?= $row['id'] ?></td>
+                    <td><?= $row['date'] ?></td>
+                    <td><?= $row['total_orders'] ?></td>
+                    <td>₱<?= number_format($row['total_sales'], 2) ?></td>
+                    <td>₱<?= number_format($row['total_discount'], 2) ?></td>
+                    <td>₱<?= number_format($row['closing_cash'], 2) ?></td>
+                    <td>
+                        <a href="z_view.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-primary">View</a>
+                    </td>
+                    <td>
+                        <a href="z_print.php?id=<?= $row['id'] ?>" target="_blank" class="btn btn-sm btn-success">Print</a>
+                    </td>
+                </tr>
+            <?php endwhile; ?>
         </tbody>
     </table>
 </div>

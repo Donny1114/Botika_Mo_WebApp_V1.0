@@ -147,6 +147,7 @@ WHERE oi.order_id = $void_id
 }
 include 'header.php';
 
+
 /* =========================
    FILTER INPUTS
 ========================= */
@@ -155,35 +156,52 @@ $end_date   = $_GET['end_date'] ?? '';
 $view_by    = $_GET['view_by'] ?? 'daily';
 
 /* =========================
-   KEEP ORIGINAL DATE (FIX)
+   DEFAULT: TODAY ONLY
 ========================= */
-
-$start_sql = $start_date;
-$end_sql   = $end_date;
-
+if (!$start_date && !$end_date) {
+    $start_date = date('Y-m-d');
+    $end_date   = date('Y-m-d');
+}
 
 /* =========================
-   WHERE CONDITIONS
+   PREPARE SQL DATES
 ========================= */
 $where = "WHERE 1=1";
 
-if ($start_sql) {
-
-    $start_sql .= " 00:00:00";
-
-    $where .= " AND o.created_at >= '" .
-        mysqli_real_escape_string($conn, $start_sql) . "'";
+if ($start_date) {
+    $start_sql = $start_date . " 00:00:00";
+    $where .= " AND o.created_at >= '" . mysqli_real_escape_string($conn, $start_sql) . "'";
 }
 
-if ($end_sql) {
-
-    $end_sql .= " 23:59:59";
-
-    $where .= " AND o.created_at <= '" .
-        mysqli_real_escape_string($conn, $end_sql) . "'";
+if ($end_date) {
+    $end_sql = $end_date . " 23:59:59";
+    $where .= " AND o.created_at <= '" . mysqli_real_escape_string($conn, $end_sql) . "'";
 }
+/* =========================
+   PAGINATION
+========================= */
+$limit = 50;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 
+if ($page < 1) $page = 1;
 
+$offset = ($page - 1) * $limit;
+
+/* =========================
+   TOTAL COUNT
+========================= */
+$count_sql = "
+SELECT COUNT(DISTINCT o.id) AS total
+FROM orders o
+LEFT JOIN order_items oi ON oi.order_id = o.id
+$where
+";
+
+$count_result = mysqli_query($conn, $count_sql);
+$count_row = mysqli_fetch_assoc($count_result);
+
+$total_records = $count_row['total'];
+$total_pages = ceil($total_records / $limit);
 /* =========================
    FETCH ORDERS (FIX DISCOUNT)
 ========================= */
@@ -223,6 +241,7 @@ $where
 GROUP BY o.id
 
 ORDER BY o.created_at DESC
+LIMIT $limit OFFSET $offset
 ";
 
 $result = mysqli_query($conn, $sql);
@@ -518,7 +537,39 @@ WHERE oi.order_id = {$o['id']}
 
             </tbody>
         </table>
+        <!-- PAGINATION -->
+        <nav>
+            <ul class="pagination">
 
+                <?php if ($page > 1): ?>
+                    <li class="page-item">
+                        <a class="page-link"
+                            href="?page=<?= $page - 1 ?>&start_date=<?= $start_date ?>&end_date=<?= $end_date ?>">
+                            Previous
+                        </a>
+                    </li>
+                <?php endif; ?>
+
+                <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                    <li class="page-item <?= ($i == $page) ? 'active' : '' ?>">
+                        <a class="page-link"
+                            href="?page=<?= $i ?>&start_date=<?= $start_date ?>&end_date=<?= $end_date ?>">
+                            <?= $i ?>
+                        </a>
+                    </li>
+                <?php endfor; ?>
+
+                <?php if ($page < $total_pages): ?>
+                    <li class="page-item">
+                        <a class="page-link"
+                            href="?page=<?= $page + 1 ?>&start_date=<?= $start_date ?>&end_date=<?= $end_date ?>">
+                            Next
+                        </a>
+                    </li>
+                <?php endif; ?>
+
+            </ul>
+        </nav>
     <?php endif; ?>
 
 </div>

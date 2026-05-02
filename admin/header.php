@@ -79,6 +79,7 @@ $isInventory =
         <a href="<?php echo BASE_URL; ?>admin/admin_sales.php">💰 Sales (Manual)</a>
         <a href="<?php echo BASE_URL; ?>admin/sales_report.php">📊 Sales Report</a>
         <a href="<?php echo BASE_URL; ?>admin/product_profit_report.php">📊 Product Profit Report</a>
+        <a href="<?php echo BASE_URL; ?>admin/category_profit_report.php">📊 Category Profit Report</a>
         <a href="<?php echo BASE_URL; ?>admin/x_reading.php">📊 X Reading</a>
         <a href="<?php echo BASE_URL; ?>admin/z_reading.php">📊 Z Reading</a>
         <a href="<?php echo BASE_URL; ?>admin/void_refund_report.php">🧾 Void/Refund Report</a>

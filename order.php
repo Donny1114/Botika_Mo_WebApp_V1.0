@@ -55,39 +55,36 @@ $discountPercent = $_SESSION['discount_percent'];
 // =========================
 function restoreStock($conn, $order_id)
 {
-    $items = $conn->query("
-        SELECT product_id, quantity
-        FROM order_items
-        WHERE order_id=$order_id
-    ");
+    $conn->begin_transaction();
 
-    while ($row = $items->fetch_assoc()) {
+    try {
 
-        $pid = (int)$row['product_id'];
-        $qty = (int)$row['quantity'];
-
+        //  FAST: restore all stock in ONE query
         $conn->query("
-            UPDATE products
-            SET stock = stock + $qty
-            WHERE id=$pid
+            UPDATE products p
+            JOIN order_items oi ON oi.product_id = p.id
+            SET p.stock = p.stock + oi.quantity
+            WHERE oi.order_id = $order_id
         ");
+
+        //  remove items after restoring
+        $conn->query("
+            DELETE FROM order_items
+            WHERE order_id = $order_id
+        ");
+
+        $conn->commit();
+    } catch (Exception $e) {
+
+        $conn->rollback();
+
+        error_log("Restore stock failed: " . $e->getMessage());
     }
-
-    $conn->query("
-        DELETE FROM order_items
-        WHERE order_id=$order_id
-    ");
 }
-
 // =========================
 // Fetch current cart items
 // =========================
-$cartItems = $conn->query("
-    SELECT oi.product_id, p.name, oi.quantity, oi.sell_price, oi.cost_price,oi.discount_percent
-    FROM order_items oi
-    JOIN products p ON p.id = oi.product_id
-    WHERE oi.order_id = $order_id
-");
+
 
 $total = 0;
 $totalDiscountFromItems = 0;

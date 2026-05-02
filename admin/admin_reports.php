@@ -182,7 +182,7 @@ $expected_cash = $opening + $cash;
         </div>
 
         <div class="col-md-4">
-            <div class="card bg-success text-white p-3">
+            <div class="card bg-info text-white p-3">
                 <h4>Net Sales</h4>
                 <h3>₱<?= number_format($totalNetSales, 2) ?></h3>
             </div>
@@ -200,7 +200,7 @@ $expected_cash = $opening + $cash;
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card bg-primary text-white p-3">
+            <div class="card bg-secondary text-white p-3">
                 <h4>Total Orders</h4>
                 <h3><?= number_format($totalOrders) ?></h3>
             </div>
@@ -308,8 +308,8 @@ AND status != 'Voided'
                 {
                     label: 'Net Sales',
                     data: netSalesData,
-                    borderColor: 'blue',
-                    backgroundColor: 'rgba(0,0,255,0.2)',
+                    borderColor: 'cyan',
+                    backgroundColor: 'rgba(93, 225, 242, 0.2)',
                     fill: true,
                     tension: 0.3
                 },
@@ -324,8 +324,8 @@ AND status != 'Voided'
                 {
                     label: 'Net Profit',
                     data: netData,
-                    borderColor: 'brown',
-                    backgroundColor: 'rgba(0,0,255,0.2)',
+                    borderColor: 'blue',
+                    backgroundColor: 'rgba(93, 225, 242, 0.2)',
                     fill: true,
                     tension: 0.3
                 },
@@ -340,7 +340,7 @@ AND status != 'Voided'
                 {
                     label: 'Total Orders',
                     data: orderData,
-                    borderColor: 'purple',
+                    borderColor: 'grey',
                     backgroundColor: 'rgba(187, 19, 114, 0.2)',
                     fill: true,
                     tension: 0.3
